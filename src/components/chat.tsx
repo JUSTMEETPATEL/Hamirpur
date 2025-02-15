@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Camera } from "lucide-react";
+import {  Loader2, Upload, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
 
 interface Message {
@@ -16,17 +17,26 @@ export default function WasteClassifier() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
   const [result, setResult] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [status, setStatus] = useState<"idle" | "connecting" | "analyzing" | "questioning" | "complete" | "error">("idle");
   const [error, setError] = useState<string>("");
+  const [questionCount, setQuestionCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const wsRef = useRef<WebSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image size should be less than 5MB");
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result as string);
+        setStatus("idle");
+        setError("");
+        setResult("");
       };
       reader.readAsDataURL(file);
     }
@@ -35,19 +45,22 @@ export default function WasteClassifier() {
   const handleAnswer = async (answer: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(answer);
+      setQuestionCount((prev) => ({ ...prev, current: prev.current + 1 }));
     }
   };
 
   const startClassification = async () => {
     if (!selectedImage) return;
 
-    setIsProcessing(true);
+    setStatus("connecting");
     setError("");
     setResult("");
+    setQuestionCount({ current: 0, total: 0 });
 
     wsRef.current = new WebSocket("ws://localhost:8000/ws");
 
     wsRef.current.onopen = () => {
+      setStatus("analyzing");
       if (wsRef.current?.readyState === WebSocket.OPEN && selectedImage) {
         wsRef.current.send(selectedImage);
       }
@@ -58,28 +71,79 @@ export default function WasteClassifier() {
 
       switch (message.type) {
         case "question":
+          setStatus("questioning");
           setCurrentQuestion(message.content);
+          if (questionCount.total === 0) {
+            setQuestionCount((prev) => ({ ...prev, total: 3 }));
+          }
           break;
         case "result":
           setResult(message.content);
           setCurrentQuestion("");
-          setIsProcessing(false);
+          setStatus("complete");
           break;
         case "error":
           setError(message.content);
-          setIsProcessing(false);
+          setStatus("error");
           break;
       }
     };
 
     wsRef.current.onerror = () => {
-      setError("WebSocket error occurred");
-      setIsProcessing(false);
+      setError("Connection error occurred. Please try again.");
+      setStatus("error");
     };
 
     wsRef.current.onclose = () => {
-      setIsProcessing(false);
+      if (status !== "complete" && status !== "error") {
+        setError("Connection closed unexpectedly. Please try again.");
+        setStatus("error");
+      }
     };
+  };
+
+  const getStatusDisplay = () => {
+    switch (status) {
+      case "connecting":
+        return (
+          <Alert className="mb-4">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <AlertDescription>Connecting to the server...</AlertDescription>
+          </Alert>
+        );
+      case "analyzing":
+        return (
+          <Alert className="mb-4">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <AlertDescription>Analyzing your image...</AlertDescription>
+          </Alert>
+        );
+      case "questioning":
+        return (
+          <Alert className="mb-4">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              Question {questionCount.current + 1} of {questionCount.total}
+            </AlertDescription>
+          </Alert>
+        );
+      case "complete":
+        return (
+          <Alert className="mb-4 bg-green-50">
+            <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
+            <AlertDescription>Analysis complete!</AlertDescription>
+          </Alert>
+        );
+      case "error":
+        return (
+          <Alert className="mb-4 bg-red-50">
+            <XCircle className="h-4 w-4 mr-2 text-red-600" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -87,18 +151,24 @@ export default function WasteClassifier() {
       <Card>
         <CardHeader>
           <CardTitle>E-Waste Classifier</CardTitle>
+          <CardDescription>
+            Upload an image of your electronic waste item for classification
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {getStatusDisplay()}
+
             {/* Image Upload Section */}
             <div className="flex flex-col items-center gap-4">
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 variant="outline"
                 className="w-full"
+                disabled={status !== "idle" && status !== "error" && status !== "complete"}
               >
-                <Camera className="mr-2 h-4 w-4" />
-                Select Image
+                <Upload className="mr-2 h-4 w-4" />
+                {selectedImage ? "Change Image" : "Upload Image"}
               </Button>
               <input
                 ref={fileInputRef}
@@ -108,32 +178,32 @@ export default function WasteClassifier() {
                 className="hidden"
               />
               {selectedImage && (
-                <div className="relative w-full h-64">
+                <div className="relative w-full h-64 border rounded-lg overflow-hidden">
                   <Image
-                    height={64}
-                    width={64}
                     src={selectedImage}
                     alt="Selected waste item"
-                    className="w-full h-full object-contain"
+                    fill
+                    className="object-contain"
+                    priority
                   />
                 </div>
               )}
             </div>
 
             {/* Start Classification Button */}
-            {selectedImage && !isProcessing && !currentQuestion && (
+            {selectedImage && (status === "idle" || status === "error" || status === "complete") && (
               <Button
                 onClick={startClassification}
                 className="w-full"
-                disabled={isProcessing}
+                disabled={["connecting", "analyzing", "questioning"].includes(status)}
               >
-                Start Classification
+                {status === "complete" ? "Classify Again" : "Start Classification"}
               </Button>
             )}
 
             {/* Question-Answer Section */}
             {currentQuestion && (
-              <div className="space-y-4">
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                 <p className="font-medium">{currentQuestion}</p>
                 <div className="flex gap-2">
                   <Input
@@ -165,13 +235,6 @@ export default function WasteClassifier() {
               <div className="p-4 bg-green-50 rounded-lg">
                 <h3 className="font-semibold mb-2">Classification Result:</h3>
                 <p>{result}</p>
-              </div>
-            )}
-
-            {/* Error Section */}
-            {error && (
-              <div className="p-4 bg-red-50 text-red-600 rounded-lg">
-                <p>{error}</p>
               </div>
             )}
           </div>
