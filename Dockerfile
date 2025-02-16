@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     git \
     build-essential \
-    python3.9 \
+    python3 \
     python3-pip \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -51,7 +51,9 @@ WORKDIR /app
 
 # Copy Python backend from python-base
 COPY --from=python-base /app/backend /app/backend
-COPY --from=python-base /usr/local/lib/python3.9/dist-packages /usr/local/lib/python3.9/dist-packages
+# Fix: Copy from the correct Python packages location
+COPY --from=python-base /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+COPY --from=python-base /usr/local/lib/python3/dist-packages /usr/local/lib/python3/dist-packages
 
 # Copy Next.js build from node-base
 COPY --from=node-base /app/frontend/.next /app/frontend/.next
