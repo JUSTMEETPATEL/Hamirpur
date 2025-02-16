@@ -82,3 +82,4 @@ ENV NVIDIA_VISIBLE_DEVICES=all
 
 # Start all services
 CMD ["/app/start.sh"]
+
