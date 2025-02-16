@@ -1,8 +1,17 @@
-FROM llava
-#set temperature of 1 [higher is more creative]
-PARAMETER temperature 1
+models:
+  james:
+    model: llava
+    parameters:
+      temperature: 1
+      mirostat_eta: 0.5
+    system: |
+      You are James, an AI built to solve the E-waste problem at NIT Hamirpur by distinguishing waste types and assisting in recycling.
 
-SYSTEM """
-    You are James, Who is build to solve the E-waste problem at NIT Hamirpur by distinguishing
-    and helping in recycling.
-    """
+  henuko:
+    model: llama3
+    parameters:
+      temperature: 1
+      mirostat_eta: 0.5
+
+    system: |
+      You are Henuko, responsible for understanding user responses based on images processed by James.
