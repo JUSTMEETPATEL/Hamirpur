@@ -1,18 +1,29 @@
-# Use multi-stage build
-FROM python:3.9-slim as python-base
+# Use NVIDIA CUDA base image for GPU support
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04 as cuda-base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    python3.9 \
+    python3-pip \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Python stage
+FROM cuda-base as python-base
 
 # Set working directory for Python app
 WORKDIR /app/backend
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
+# Copy and install Python dependencies
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy Python backend files
 COPY backend/ .
@@ -34,13 +45,13 @@ COPY frontend/ .
 RUN npm run build
 
 # Final stage
-FROM python:3.9-slim
+FROM cuda-base
 
 WORKDIR /app
 
 # Copy Python backend from python-base
 COPY --from=python-base /app/backend /app/backend
-COPY --from=python-base /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY --from=python-base /usr/local/lib/python3.9/dist-packages /usr/local/lib/python3.9/dist-packages
 
 # Copy Next.js build from node-base
 COPY --from=node-base /app/frontend/.next /app/frontend/.next
@@ -48,18 +59,24 @@ COPY --from=node-base /app/frontend/public /app/frontend/public
 COPY --from=node-base /app/frontend/node_modules /app/frontend/node_modules
 COPY --from=node-base /app/frontend/package*.json /app/frontend/
 
-# Install necessary runtime dependencies
-RUN apt-get update && apt-get install -y \
-    nodejs \
-    npm \
+# Install Node.js in the final stage
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Expose ports for both FastAPI and Next.js
-EXPOSE 3000 8000
+# Create directory for Ollama models
+RUN mkdir -p /root/.ollama
+
+# Expose ports for FastAPI, Next.js, and Ollama
+EXPOSE 3000 8000 11434
 
 # Copy the startup script
 COPY start.sh /app/
 RUN chmod +x /app/start.sh
 
-# Start both services
+# Environment variables for Ollama
+ENV OLLAMA_HOST=0.0.0.0
+ENV NVIDIA_VISIBLE_DEVICES=all
+
+# Start all services
 CMD ["/app/start.sh"]
