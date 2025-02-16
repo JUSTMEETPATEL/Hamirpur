@@ -53,7 +53,7 @@ def categorize_e_waste(image_data):
 
     # After all answers are collected, send them to the model for analysis
     follow_up = ollama.chat(
-        model='james:latest',
+        model='llama3.2:latest',
         messages=[
             {
                 "role": "system",
@@ -74,7 +74,7 @@ def categorize_e_waste(image_data):
 
     # Final categorization
     final_decision = ollama.chat(
-        model='james:latest',
+        model='llama3.2:latest',
         messages=[
             {
                 "role": "system",
