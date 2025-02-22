@@ -1,0 +1,35 @@
+name: Docker Compose CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build and Start Docker Containers
+      run: |
+        docker-compose up -d --build
+
+    - name: Show Running Containers
+      run: docker ps
+
+    - name: Wait for Backend to Start
+      run: |
+        sleep 10  # Give some time for the backend to start
+        curl -f http://localhost:8000 || exit 1
+
+    - name: Wait for Frontend to Start
+      run: |
+        sleep 10  # Give some time for the frontend to start
+        curl -f http://localhost:3000 || exit 1
