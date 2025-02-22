@@ -19,37 +19,39 @@ jobs:
           # Pull required images first
           docker pull ollama/ollama:latest
           
-          # Build images
-          docker compose build --no-cache --progress=plain
+          # Start ollama service first
+          docker compose up -d ollama
           
-          # Start services
+          # Wait for ollama to be healthy
+          echo "Waiting for Ollama to be ready..."
+          attempt=1
+          max_attempts=30
+          until docker compose ps ollama | grep -q "healthy" || [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Waiting for Ollama to be healthy..."
+            docker compose logs ollama
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+          
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Ollama failed to become healthy after $max_attempts attempts"
+            exit 1
+          fi
+          
+          # Start remaining services
           docker compose up -d
-          
-          # Wait for services to initialize
-          echo "Waiting for services to initialize..."
-          sleep 30
       
-      - name: Check Ollama Status
-        run: |
-          echo "Checking Ollama service status..."
-          docker compose logs ollama
-          
-          echo "Checking Ollama initialization status..."
-          docker compose logs ollama-init
-      
-      - name: Check Backend Status
-        run: |
-          echo "Checking Backend service status..."
-          docker compose logs backend
-      
-      - name: Display All Services Status
+      - name: Display Service Status
         if: always()
         run: |
           echo "=== Container Status ==="
           docker compose ps
           
-          echo "=== Full Service Logs ==="
-          docker compose logs
+          echo "=== Ollama Logs ==="
+          docker compose logs ollama
+          
+          echo "=== Backend Logs ==="
+          docker compose logs backend
           
           echo "=== Resource Usage ==="
-          docker stats --no-stream
+          docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
