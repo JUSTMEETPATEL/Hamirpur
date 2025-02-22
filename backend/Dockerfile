@@ -8,11 +8,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first
+# Create and activate virtual environment
+RUN python -m venv /app/venv
+
+# Copy requirements file first
 COPY backend/requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies inside virtual environment
+RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/ .
@@ -23,5 +26,5 @@ RUN chmod +x server.py
 # Expose the port
 EXPOSE 8000
 
-# Command to run the server
-CMD ["python", "server.py"]
+# Use the virtual environment when running the server
+CMD ["/app/venv/bin/python", "server.py"]
