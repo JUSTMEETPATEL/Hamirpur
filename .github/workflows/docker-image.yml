@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Increased timeout
+    timeout-minutes: 45  # Increased timeout for better handling
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,22 +16,37 @@ jobs:
       
       - name: Build and Push Docker Images
         run: |
-          docker compose up --build -d
-          # Wait for services to be ready
-          echo "Waiting for services to be ready..."
-          sleep 30
+          # Build images with detailed output
+          docker compose build --progress=plain
           
-      - name: Check Running Containers
+          # Start services
+          docker compose up -d
+          
+          # Wait and check service health
+          echo "Waiting for services to initialize..."
+          for i in {1..12}; do
+            echo "Check $i of 12..."
+            if docker compose ps | grep -q "running"; then
+              echo "Services are running"
+              break
+            fi
+            sleep 10
+          done
+      
+      - name: Display Service Logs
+        if: always()
         run: |
-          echo "Listing all containers and their status:"
-          docker ps -a
-          echo "Container logs:"
+          echo "=== Full Docker Compose Logs ==="
           docker compose logs
-      
-      - name: Show Ollama Logs
-        if: always()
-        run: docker logs $(docker ps -aqf "name=ollama") || true
-      
-      - name: Show Backend Logs
-        if: always()
-        run: docker logs $(docker ps -aqf "name=backend") || true
+          
+          echo "=== Backend Build and Runtime Logs ==="
+          docker compose logs backend
+          
+          echo "=== Python Package Installation Logs ==="
+          docker compose exec backend pip freeze || true
+          
+          echo "=== Container Status ==="
+          docker compose ps
+          
+          echo "=== Disk Space Information ==="
+          df -h
