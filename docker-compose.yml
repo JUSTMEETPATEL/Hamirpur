@@ -1,4 +1,3 @@
-
 services:
   backend:
     build:
@@ -13,14 +12,16 @@ services:
       - OLLAMA_PORT=11434
       - PYTHONUNBUFFERED=1
     depends_on:
-      ollama-init:
-        condition: service_completed_successfully
+      ollama:
+        condition: service_healthy
     entrypoint: >
       sh -c "
         echo 'Waiting for Ollama...';
-        until curl -s ollama:11434; do
+        until curl -sf ollama:11434/api/tags; do
+          echo 'Ollama is not ready - sleeping 5s'
           sleep 5;
         done;
+        echo 'Ollama is ready!'
         exec /app/venv/bin/python server.py
       "
     networks:
@@ -50,20 +51,24 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - app_network
-
-  ollama-init:
-    image: ollama/ollama:latest
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     command: >
       sh -c "
-        ollama pull llava &&
-        exit 0
+        ollama serve &
+        echo 'Starting Ollama server and waiting for it to be ready...'
+        until curl -sf localhost:11434/api/tags; do
+          echo 'Waiting for Ollama to start...'
+          sleep 5
+        done
+        echo 'Pulling LLaVA model...'
+        ollama pull llava
+        wait
       "
-    volumes:
-      - ollama_data:/root/.ollama
-    depends_on:
-      - ollama
-    networks:
-      - app_network
 
 networks:
   app_network:
