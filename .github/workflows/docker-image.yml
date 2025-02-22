@@ -14,16 +14,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
-      - name: Build and Start Services
+      - name: Start Ollama Service
         run: |
-          # Pull required images first
-          docker pull ollama/ollama:latest
-          
-          # Start ollama service first
+          echo "Starting Ollama service..."
           docker compose up -d ollama
           
-          # Wait for ollama to be healthy
-          echo "Waiting for Ollama to be ready..."
+          echo "Waiting for Ollama to be healthy..."
           attempt=1
           max_attempts=30
           until docker compose ps ollama | grep -q "healthy" || [ $attempt -gt $max_attempts ]; do
@@ -34,15 +30,20 @@ jobs:
           done
           
           if [ $attempt -gt $max_attempts ]; then
-            echo "Ollama failed to become healthy after $max_attempts attempts"
+            echo "Failed: Ollama service did not become healthy"
+            docker compose logs ollama
             exit 1
           fi
           
-          # Start remaining services
+          echo "Ollama service is healthy, pulling model..."
+          docker compose up ollama-init
+      
+      - name: Start Remaining Services
+        run: |
+          echo "Starting remaining services..."
           docker compose up -d
       
-      - name: Display Service Status
-        if: always()
+      - name: Check Services
         run: |
           echo "=== Container Status ==="
           docker compose ps
@@ -50,8 +51,15 @@ jobs:
           echo "=== Ollama Logs ==="
           docker compose logs ollama
           
+          echo "=== Ollama Init Logs ==="
+          docker compose logs ollama-init
+          
           echo "=== Backend Logs ==="
           docker compose logs backend
-          
-          echo "=== Resource Usage ==="
-          docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+
+      - name: Display Service Status
+        if: always()
+        run: |
+          echo "=== Final Status ==="
+          docker compose ps
+          docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
