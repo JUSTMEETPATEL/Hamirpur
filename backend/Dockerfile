@@ -1,3 +1,4 @@
+
 FROM python:3.9-slim
 
 WORKDIR /app
@@ -12,11 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-# Copy requirements file first (to leverage Docker cache)
+# Copy requirements first to cache dependencies
 COPY backend/requirements.txt .
 
 # Install dependencies inside virtual environment
-RUN pip install --no-cache-dir -r requirements.txt
+RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
 COPY backend/ .
@@ -24,6 +25,5 @@ COPY backend/ .
 # Expose the port
 EXPOSE 8000
 
-# Start the server
-CMD ["python", "server.py"]
-
+# Ensure the backend waits for Ollama
+CMD ["/app/venv/bin/python", "server.py"]
