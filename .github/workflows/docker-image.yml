@@ -27,6 +27,10 @@ jobs:
     - name: Build and Start Docker Containers
       run: |
         docker-compose up -d --build
+      
+    - name: Show Backend Container Logs (if it fails)
+      if: always()
+      run: docker logs $(docker ps -aqf "name=backend") || true
 
     - name: Show Running Containers
       run: docker ps
