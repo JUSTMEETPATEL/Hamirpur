@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+      - "8000:8000/tcp"
+      - "8000:8000/udp"
+    volumes:
+      - ./backend:/app
+    environment:
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    networks:
+      - app_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - app_network
+
+  ollama-init:
+    image: ollama/ollama:latest
+    command: >
+      sh -c "
+        ollama serve &
+        sleep 5 &&
+        ollama pull llava &&
+        exit 0
+      "
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      - ollama
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  ollama_data:

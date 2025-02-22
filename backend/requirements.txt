@@ -2,5 +2,6 @@ fastapi
 uvicorn
 python-multipart
 websockets
-pillow  # If you're handling images
-# Add any other dependencies your model needs
+pillow
+ollama
+python-jose
