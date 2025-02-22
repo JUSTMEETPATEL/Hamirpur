@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-      args:
-        - BUILDKIT_PROGRESS=plain
     ports:
       - "8000:8000"
     volumes:
@@ -13,28 +11,9 @@ services:
       - OLLAMA_HOST=ollama
       - OLLAMA_PORT=11434
       - PYTHONUNBUFFERED=1
-      - PIP_NO_CACHE_DIR=1
-      - PIP_VERBOSE=1
     depends_on:
-      ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "pip", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    entrypoint: >
-      sh -c "
-        echo 'Installing Python dependencies...' &&
-        pip install -r requirements.txt --verbose &&
-        echo 'Waiting for Ollama...' &&
-        until curl -sf ollama:11434/api/tags; do
-          echo 'Ollama is not ready - sleeping 5s'
-          sleep 5
-        done &&
-        echo 'Ollama is ready!' &&
-        exec /app/venv/bin/python server.py
-      "
+      ollama-init:
+        condition: service_completed_successfully
     networks:
       - app_network
 
@@ -68,18 +47,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    command: >
-      sh -c "
-        ollama serve &
-        echo 'Starting Ollama server...' &&
-        until curl -sf localhost:11434/api/tags; do
-          echo 'Waiting for Ollama to start...'
-          sleep 5
-        done &&
-        echo 'Pulling LLaVA model...' &&
-        ollama pull llava &&
-        wait
-      "
+
+  ollama-init:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - app_network
+    entrypoint: ollama
+    command: pull llava
 
 networks:
   app_network:
