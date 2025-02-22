@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Increased timeout for better handling
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -14,39 +14,42 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
-      - name: Build and Push Docker Images
+      - name: Build and Start Services
         run: |
-          # Build images with detailed output
-          docker compose build --progress=plain
+          # Pull required images first
+          docker pull ollama/ollama:latest
+          
+          # Build images
+          docker compose build --no-cache --progress=plain
           
           # Start services
           docker compose up -d
           
-          # Wait and check service health
+          # Wait for services to initialize
           echo "Waiting for services to initialize..."
-          for i in {1..12}; do
-            echo "Check $i of 12..."
-            if docker compose ps | grep -q "running"; then
-              echo "Services are running"
-              break
-            fi
-            sleep 10
-          done
+          sleep 30
       
-      - name: Display Service Logs
+      - name: Check Ollama Status
+        run: |
+          echo "Checking Ollama service status..."
+          docker compose logs ollama
+          
+          echo "Checking Ollama initialization status..."
+          docker compose logs ollama-init
+      
+      - name: Check Backend Status
+        run: |
+          echo "Checking Backend service status..."
+          docker compose logs backend
+      
+      - name: Display All Services Status
         if: always()
         run: |
-          echo "=== Full Docker Compose Logs ==="
-          docker compose logs
-          
-          echo "=== Backend Build and Runtime Logs ==="
-          docker compose logs backend
-          
-          echo "=== Python Package Installation Logs ==="
-          docker compose exec backend pip freeze || true
-          
           echo "=== Container Status ==="
           docker compose ps
           
-          echo "=== Disk Space Information ==="
-          df -h
+          echo "=== Full Service Logs ==="
+          docker compose logs
+          
+          echo "=== Resource Usage ==="
+          docker stats --no-stream
