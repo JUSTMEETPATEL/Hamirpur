@@ -1,0 +1,65 @@
+name: Build and Deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Start Ollama Service
+        run: |
+          echo "Starting Ollama service..."
+          docker compose up -d ollama
+          
+          echo "Waiting for Ollama to be healthy..."
+          attempt=1
+          max_attempts=30
+          until docker compose ps ollama | grep -q "healthy" || [ $attempt -gt $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Waiting for Ollama to be healthy..."
+            docker compose logs ollama
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+          
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Failed: Ollama service did not become healthy"
+            docker compose logs ollama
+            exit 1
+          fi
+          
+          echo "Ollama service is healthy, pulling model..."
+          docker compose up ollama-init
+      
+      - name: Start Remaining Services
+        run: |
+          echo "Starting remaining services..."
+          docker compose up -d
+      
+      - name: Check Services
+        run: |
+          echo "=== Container Status ==="
+          docker compose ps
+          
+          echo "=== Ollama Logs ==="
+          docker compose logs ollama
+          
+          echo "=== Ollama Init Logs ==="
+          docker compose logs ollama-init
+          
+          echo "=== Backend Logs ==="
+          docker compose logs backend
+
+      - name: Display Service Status
+        if: always()
+        run: |
+          echo "=== Final Status ==="
+          docker compose ps
+          docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"

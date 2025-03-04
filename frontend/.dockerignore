@@ -1,0 +1,55 @@
+# General OS/Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.swn
+*.bak
+*.log
+
+# Git files
+.git
+.gitignore
+
+# Next.js build outputs
+.next
+out
+.vercel
+dist
+
+# Node.js dependencies
+node_modules
+frontend/node_modules
+
+# Python Virtual Environment
+venv
+backend/venv
+
+# Python compiled files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+secrets.json
+
+# Docker-related
+docker-compose.override.yml
+docker-compose.dev.yml
+Dockerfile.dev
+*.tar
+
+# Miscellaneous
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+bun.lockb
+package-lock.json
+pnpm-lock.yaml
+

@@ -1,0 +1,71 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app:delegated
+    environment:
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    networks:
+      - app_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_ORIGINS=*
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: ["ollama", "serve"]
+
+  ollama-init:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: ["ollama", "pull", "llava"]
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  ollama_data:

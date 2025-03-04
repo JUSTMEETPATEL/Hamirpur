@@ -4,7 +4,7 @@ import threading
 def handle_client(client_socket):
     while True:
         data = client_socket.recv(1024)
-        if not data:
+        if not data
             break
         message = data.decode('utf-8')
         print(f"Recieved Message: {message}")
