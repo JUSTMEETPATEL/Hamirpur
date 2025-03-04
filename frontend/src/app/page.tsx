@@ -1,12 +1,19 @@
-import Chat from '@/components/chat'
-import React from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import Navbar from '@/components/navbar'
+import HeroSection from '@/components/Hero'
+import AboutProject from '@/components/AboutProject'
+import AboutNITH from '@/components/AboutNIT'
+import AboutMamta from '@/components/AboutMA'
 
-const Home = () => {
+export default function Home() {
   return (
-    <div>
-      <Chat />
-    </div>
+    <main className="min-h-screen bg-white">
+      <Navbar />
+      <HeroSection />
+      <AboutProject />
+      <AboutNITH />
+      <AboutMamta />
+    </main>
   )
 }
-
-export default Home
