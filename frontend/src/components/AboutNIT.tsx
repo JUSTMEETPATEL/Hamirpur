@@ -17,21 +17,17 @@ export default function AboutNITH() {
           </div>
           <div>
             <p className="text-lg text-gray-800 mb-4">
-              National Institute of Technology Hamirpur is one of the thirty-one NITs of the country, which came into
-              existence on August 7, 1986, as Regional Engineering College Hamirpur in the Shivalik ranges of Himalayas.
+            National Institute of Technology (NIT) Hamirpur
+The National Institute of Technology Hamirpur (NIT Hamirpur) is a premier technical institute in Himachal Pradesh, established in 1986 as a Regional Engineering College (REC) and later elevated to an Institute of National Importance in 2002. Known for its scenic campus, state-of-the-art infrastructure, and academic excellence, NIT Hamirpur is committed to fostering innovation, research, and technical expertise.
+
+The institute offers undergraduate, postgraduate, and doctoral programs in diverse fields, including Engineering, Architecture, Sciences, and Management. With well-equipped laboratories, a modern library, research centers, and student innovation hubs, it provides a dynamic learning environment. The Innovation & Incubation Center supports entrepreneurship and technological advancements, promoting industry-academia collaboration.
+
+NIT Hamirpur emphasizes research-driven education, particularly in sustainable technologies, AI, and energy-efficient solutions. Students actively engage in technical festivals (NIMBUS), cultural events, and startup initiatives, fostering an ecosystem of holistic learning and leadership development.
+
+The institute has a strong placement record, with top recruiters from technology, consulting, and core engineering sectors offering lucrative career opportunities. Through its focus on industry partnerships, research excellence, and student-driven initiatives, NIT Hamirpur continues to be a center of excellence in technical education, shaping future leaders and innovators.
             </p>
-            <p className="text-lg text-gray-800 mb-4">
-              The institute was jointly established by the Government of India and the Government of Himachal Pradesh
-              with the aim to provide high quality technical education in the northern region of India.
-            </p>
-            <p className="text-lg text-gray-800 mb-4">
-              NIT Hamirpur has been ranked among the top technical institutes in India and is known for its excellent
-              academic programs, research facilities, and campus infrastructure.
-            </p>
-            <p className="text-lg text-gray-800">
-              The institute offers undergraduate, postgraduate, and doctoral programs in various disciplines of
-              engineering, technology, architecture, humanities, and sciences.
-            </p>
+            
+            
           </div>
         </div>
       </div>
