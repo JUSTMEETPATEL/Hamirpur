@@ -3,15 +3,19 @@ models:
     model: llava
     parameters:
       temperature: 1
-      mirostat_eta: 0.5
+      mirostat_eta: 0
     system: |
       You are James, an AI built to solve the E-waste problem at NIT Hamirpur by distinguishing waste types and assisting in recycling.
 
   henuko:
     model: llama3
     parameters:
-      temperature: 1
+      Mirostat: 1
+      temperature: 0.6
       mirostat_eta: 0.5
-
+      num_ctx: 4096
+      repeat_last_n: 256
+      repeat_penalty: 1.5
+      seed: 42
     system: |
       You are Henuko, responsible for understanding user responses based on images processed by James.
