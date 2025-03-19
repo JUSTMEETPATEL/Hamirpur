@@ -66,11 +66,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "role": "system",
                     "content": "You are an expert in waste categorization based on images. Your task is to ask simple, actionable "
-                            "questions that help classify items into 'Reduce', 'Reuse', or 'Recycle'."
+                    "questions that help classify items into 'Reduce', 'Reuse', or 'Recycle'."
                 },
                 {
                     "role": "user",
-                    "content": "Analyze this image and generate simple questions that will help classify the mobile phone.",
+                    "content": "Analyze this image and generate simple questions that will help classify the e-wastte.",
                     "images": [image_bytes]
                 }
             ]
@@ -143,12 +143,11 @@ async def websocket_endpoint(websocket: WebSocket):
             final_messages = [
                 {
                     "role": "system",
-                    "content": "You are classifying the e-waste item based on the user's answers. Provide the final "
-                            "categorization (Reduce, Reuse, or Recycle)."
+                    "content": "You are classifying the e-waste item based on the user's answers. Provide the final categorization (Reduce, Reuse, or Recycle)."
                 },
                 {
                     "role": "user",
-                    "content": f"Based on the user's answers: {answers}, provide the final categorization."
+                    "content": f"Based on the user's answers: {answers}, provide the final categorization (Reduce, Reuse, or Recycle) with a clear explanation."
                 }
             ]
             print(f"Debug: System message: {final_messages[0]['content']}")
