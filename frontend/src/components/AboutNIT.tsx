@@ -17,14 +17,7 @@ export default function AboutNITH() {
           </div>
           <div>
             <p className="text-lg text-gray-800 mb-4">
-            National Institute of Technology (NIT) Hamirpur
-The National Institute of Technology Hamirpur (NIT Hamirpur) is a premier technical institute in Himachal Pradesh, established in 1986 as a Regional Engineering College (REC) and later elevated to an Institute of National Importance in 2002. Known for its scenic campus, state-of-the-art infrastructure, and academic excellence, NIT Hamirpur is committed to fostering innovation, research, and technical expertise.
-
-The institute offers undergraduate, postgraduate, and doctoral programs in diverse fields, including Engineering, Architecture, Sciences, and Management. With well-equipped laboratories, a modern library, research centers, and student innovation hubs, it provides a dynamic learning environment. The Innovation & Incubation Center supports entrepreneurship and technological advancements, promoting industry-academia collaboration.
-
-NIT Hamirpur emphasizes research-driven education, particularly in sustainable technologies, AI, and energy-efficient solutions. Students actively engage in technical festivals (NIMBUS), cultural events, and startup initiatives, fostering an ecosystem of holistic learning and leadership development.
-
-The institute has a strong placement record, with top recruiters from technology, consulting, and core engineering sectors offering lucrative career opportunities. Through its focus on industry partnerships, research excellence, and student-driven initiatives, NIT Hamirpur continues to be a center of excellence in technical education, shaping future leaders and innovators.
+            National Institute of Technology Hamirpur (NIT Hamirpur) is a premier technical institution in India, established in 1986. It is one of the 31 NITs and is recognized as an Institute of National Importance. Located in the scenic hills of Himachal Pradesh, NIT Hamirpur offers undergraduate, postgraduate, and doctoral programs in engineering, architecture, and management. The institute is known for its strong academic curriculum, research contributions, and vibrant campus life. With state-of-the-art infrastructure and a focus on innovation, NIT Hamirpur continues to produce skilled professionals contributing to various industries worldwide.
             </p>
             
             
