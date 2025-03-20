@@ -42,15 +42,16 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_ORIGINS=*
+      - OLLAMA_CPU_THREADS=4
+      - OLLAMA_DEBUG=1  # Enable detailed logging
     networks:
       - app_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -s http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 20s
       retries: 5
-      start_period: 30s
-    command: ["ollama", "serve"]
+      start_period: 120s
 
   ollama-init:
     image: ollama/ollama:latest
@@ -61,7 +62,11 @@ services:
         condition: service_healthy
     networks:
       - app_network
-    command: ["ollama", "pull", "llava"]
+    command: >
+      sh -c "sleep 15 && 
+             ollama pull llama2:7b && 
+             ollama list &&
+             echo 'Ollama initialization completed successfully'"
 
 networks:
   app_network:
