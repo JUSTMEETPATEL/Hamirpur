@@ -45,7 +45,7 @@ export default function WasteClassifier() {
   const handleAnswer = async (answer: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(answer);
-      setQuestionCount((prev) => ({ ...prev, current: prev.current + 1 }));
+
     }
   };
 
@@ -73,9 +73,6 @@ export default function WasteClassifier() {
         case "question":
           setStatus("questioning");
           setCurrentQuestion(message.content);
-          if (questionCount.total === 0) {
-            setQuestionCount((prev) => ({ ...prev, total: 3 }));
-          }
           break;
         case "result":
           setResult(message.content);
@@ -122,9 +119,7 @@ export default function WasteClassifier() {
         return (
           <Alert className="mb-4">
             <MessageSquare className="h-4 w-4 mr-2" />
-            <AlertDescription>
-              Question {questionCount.current + 1} of {questionCount.total}
-            </AlertDescription>
+
           </Alert>
         );
       case "complete":
