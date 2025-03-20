@@ -9,8 +9,9 @@ export default function Home() {
     <main className="min-h-screen bg-white">
       <Navbar />
       <HeroSection />
-      <AboutProject />
       <AboutNITH />
+      <AboutProject />
+      
       <AboutMamta />
       <WasteClassifier/>
     </main>

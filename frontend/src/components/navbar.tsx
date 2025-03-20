@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isVisible, setIsVisible] = useState(true)
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -19,18 +20,33 @@ export default function Navbar() {
     }
   }
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 0) {
+        setIsVisible(false)
+      } else {
+        setIsVisible(true)
+      }
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
+
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-200">
-      <div className="container flex items-center justify-between px-4 py-3 mx-auto">
+    <nav className={`sticky top-0 z-50 w-full bg-white border-b border-gray-200 transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+      <div className="container flex items-center justify-between px-4 py-6 mx-auto"> {/* Increased padding here */}
         <div className="flex items-center">
           <Image
             src="/pics/logo.png"
             alt="NIT Hamirpur Logo"
-            width={40}
-            height={40}
+            width={60}
+            height={60}
             className="mr-3"
           />
-          <span className="text-lg font-bold text-black">NIT Hamirpur</span>
+            <span className="text-2xl font-bold text-black" style={{ fontFamily: 'Arial, sans-serif' }}>NIT Hamirpur</span>
         </div>
 
         {/* Desktop Navigation */}
@@ -98,4 +114,3 @@ export default function Navbar() {
     </nav>
   )
 }
-
