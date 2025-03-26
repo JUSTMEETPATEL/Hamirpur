@@ -1,76 +1,48 @@
-services:
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app:delegated
-    environment:
-      - OLLAMA_HOST=ollama
-      - OLLAMA_PORT=11434
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      ollama-init:
-        condition: service_completed_successfully
-    networks:
-      - app_network
+version: '3.8'
 
+services:
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app:delegated
-      - /app/node_modules
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
-    networks:
-      - app_network
+      - ollama
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - OLLAMA_URL=http://localhost:11434  # Updated for browser access
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_URL=http://ollama:11434  # Correct within Docker network
 
   ollama:
-    image: ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
     ports:
-      - "11435:11434"
-    volumes:
-      - ollama_data:/root/.ollama
+      - "11434:11434"
     environment:
-      - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_ORIGINS=*
-      - OLLAMA_CPU_THREADS=4
-      - OLLAMA_DEBUG=1  # Enable detailed logging
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:11434/api/tags || exit 1"]
-      interval: 30s
-      timeout: 20s
-      retries: 5
-      start_period: 120s
+      - OLLAMA_CPU_ONLY=true
+      - OLLAMA_HOST=0.0.0.0  # Ensure binding to all interfaces
 
-  ollama-init:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    depends_on:
-      ollama:
-        condition: service_healthy
-    networks:
-      - app_network
-    command: >
-      sh -c "sleep 15 && 
-             ollama pull llama2:7b && 
-             ollama list &&
-             echo 'Ollama initialization completed successfully'"
+  # model-puller:
+  #   image: curlimages/curl
+  #   depends_on:
+  #     - ollama
+  #   command: >
+  #     sh -c "sleep 15 &&  # Increased sleep to ensure Ollama is up
+  #            curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"llava:7b\"}'"
 
 networks:
-  app_network:
+  default:
     driver: bridge
-
-volumes:
-  ollama_data:

@@ -1,50 +1,33 @@
-FROM python:3.9-slim
+# Use official Python image
+FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    gcc \
-    python3-dev \
+    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and activate virtual environment
-RUN python -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
+# Create a virtual environment
+RUN python -m venv /opt/venv
 
-# Upgrade pip and install wheel
-RUN /app/venv/bin/pip install --no-cache-dir --upgrade pip wheel setuptools
+# Activate virtual environment
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy requirements first to cache dependencies
+# Copy requirements file
 COPY backend/requirements.txt .
 
-# Install dependencies inside virtual environment with verbose output
-RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt --verbose
+# Install Python dependencies in the virtual environment
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
+# Copy the rest of the application
 COPY backend/ .
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose the port
+# Expose the port the app runs on
 EXPOSE 8000
 
-# Use entrypoint script for better startup handling
-COPY <<EOF /app/entrypoint.sh
-#!/bin/sh
-echo "Starting backend service..."
-echo "Python version: $(python --version)"
-echo "Pip version: $(pip --version)"
-echo "Installed packages:"
-pip list
-
-exec /app/venv/bin/python server.py
-EOF
-
-RUN chmod +x /app/entrypoint.sh
-
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Command to run the application
+CMD ["python", "server.py"]

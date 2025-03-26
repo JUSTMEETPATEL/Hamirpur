@@ -1,0 +1,24 @@
+FROM ubuntu:22.04
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -L https://ollama.ai/install.sh | OLLAMA_SKIP_VERIFY=true sh
+
+# Set environment for CPU-only mode
+ENV OLLAMA_HOST=0.0.0.0
+ENV OLLAMA_PORT=11434
+ENV OLLAMA_CPU_ONLY=true
+
+# Expose Ollama port
+EXPOSE 11434
+
+# Ensure Ollama starts and the model is pulled
+CMD ollama serve & sleep 5 && ollama pull llava:7b && tail -f /dev/null
