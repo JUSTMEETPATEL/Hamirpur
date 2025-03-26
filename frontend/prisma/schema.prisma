@@ -14,18 +14,21 @@ datasource db {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  name          String?
+  id            String    @id
+  name          String
+  email         String  @unique
   emailVerified Boolean
   image         String?
+  role          String    @default("user")
   createdAt     DateTime
   updatedAt     DateTime
+  phoneNo       String?
   sessions      Session[]
   accounts      Account[]
 
   @@map("user")
 }
+
 
 model Session {
   id        String   @id
@@ -35,7 +38,7 @@ model Session {
   updatedAt DateTime
   ipAddress String?
   userAgent String?
-  userId    Int
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
@@ -46,7 +49,7 @@ model Account {
   id                    String    @id
   accountId             String
   providerId            String
-  userId                Int
+  userId                String
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
