@@ -30,7 +30,7 @@ const SignIn = () => {
       {
         email,
         password,
-        callbackURL: "/form",
+        callbackURL: "/user-dashboard",
       },
       {
         onRequest: () => {
@@ -45,7 +45,7 @@ const SignIn = () => {
           if (ctx.error.status === 403) {
             await authClient.sendVerificationEmail({
               email,
-              callbackURL: "/dashboard",
+              callbackURL: "/user-dashboard",
             })
             toast({
               title: "Please verify your email",
