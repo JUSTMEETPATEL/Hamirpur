@@ -25,6 +25,7 @@ model User {
   phoneNo       String?
   sessions      Session[]
   accounts      Account[]
+   eWasteClassifications EWasteClassification[]
 
   @@map("user")
 }
@@ -73,4 +74,15 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model EWasteClassification {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  imageBase64   String   @db.Text
+  questions     Json     // Use Json type to store questions flexibly
+  result        String
+  confidence    Float?   // Optional confidence score
+  createdAt     DateTime @default(now())
 }
