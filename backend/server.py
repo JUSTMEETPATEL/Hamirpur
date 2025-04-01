@@ -2,7 +2,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import ollama
 import base64
-import json
+import io
+from PIL import Image
+import traceback
 from typing import List
 
 app = FastAPI()
@@ -32,9 +34,44 @@ class ConnectionManager:
         if websocket in self.active_connections:
             try:
                 await websocket.send_json(message)
-            except RuntimeError:
-                # Connection might be closed
+            except Exception as e:
+                print(f"Error sending message: {e}")
                 self.disconnect(websocket)
+
+def process_image(image_bytes):
+    """
+    Process and validate the input image
+    
+    Args:
+        image_bytes (bytes): Raw image bytes
+    
+    Returns:
+        bytes: Processed image bytes suitable for Ollama
+    """
+    try:
+        # Open image and convert to RGB PNG
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert to RGB to ensure compatibility
+        rgb_image = image.convert('RGB')
+        
+        # Resize if image is too large (optional)
+        MAX_SIZE = (1024, 1024)
+        if rgb_image.size[0] > MAX_SIZE[0] or rgb_image.size[1] > MAX_SIZE[1]:
+            rgb_image.thumbnail(MAX_SIZE, Image.LANCZOS)
+        
+        # Save to buffer
+        buffered = io.BytesIO()
+        rgb_image.save(buffered, format="PNG")
+        processed_image_bytes = buffered.getvalue()
+        
+        print(f"Image processed. Original size: {image.size}, New size: {rgb_image.size}")
+        return processed_image_bytes
+    
+    except Exception as e:
+        print(f"Image processing error: {e}")
+        traceback.print_exc()
+        raise ValueError(f"Could not process image: {str(e)}")
 
 manager = ConnectionManager()
 
@@ -47,21 +84,36 @@ async def websocket_endpoint(websocket: WebSocket):
         image_data = await websocket.receive_text()
         print("Debug: Received image data from client")
 
-        # Convert base64 string back to bytes
+        # Decode base64 image data
         try:
-            image_bytes = base64.b64decode(image_data.split(',')[1])
+            # Handle both standard and data URL base64 formats
+            if ',' in image_data:
+                image_bytes = base64.b64decode(image_data.split(',')[1])
+            else:
+                image_bytes = base64.b64decode(image_data)
+            
             print(f"Debug: Decoded image size: {len(image_bytes)} bytes")
         except Exception as e:
             print(f"Error decoding image data: {str(e)}")
+            traceback.print_exc()
             await manager.send_message(websocket, {
                 "type": "error",
                 "content": "Invalid image data received"
             })
             return
 
+        # Process image
         try:
-            # Generate initial questions using llava model
-            print("\nDebug: === Initial Model Request ===")
+            processed_image_bytes = process_image(image_bytes)
+        except ValueError as ve:
+            await manager.send_message(websocket, {
+                "type": "error",
+                "content": str(ve)
+            })
+            return
+
+        # Generate initial questions using llava model
+        try:
             messages = [
                 {
                     "role": "system",
@@ -70,23 +122,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 },
                 {
                     "role": "user",
-                    "content": "Analyze this image and generate simple questions that will help classify the e-wastte.",
-                    "images": [image_bytes]
+                    "content": "Analyze this image and generate simple, clear questions to help classify the e-waste.",
+                    "images": [processed_image_bytes]
                 }
             ]
-            print(f"Debug: System message: {messages[0]['content']}")
-            print(f"Debug: User message: {messages[1]['content']}")
-            print(f"Debug: Sending to llava model with {len(image_bytes)} bytes image")
 
-            response = ollama.chat(model='llava', messages=messages)
-            
-            print("\nDebug: === Initial Model Response ===")
-            print(f"Debug: Raw response: {response}")
+            response = ollama.chat(model='llava:latest', messages=messages)
             generated_questions = response['message']['content']
-            print(f"Debug: Generated content:\n{generated_questions}")
+            print(f"Generated questions: {generated_questions}")
 
         except Exception as e:
-            print(f"\nError in initial analysis: {str(e)}")
+            print(f"Error in initial analysis: {str(e)}")
+            traceback.print_exc()
             await manager.send_message(websocket, {
                 "type": "error",
                 "content": f"Error analyzing image: {str(e)}"
@@ -96,36 +143,29 @@ async def websocket_endpoint(websocket: WebSocket):
         # Extract and clean questions
         questions_start_index = generated_questions.find("1.")
         if questions_start_index == -1:
-            print("\nDebug: No numbered questions found - using fallback parsing")
-            questions = [q.strip() for q in generated_questions.split('?') if q.strip()]
-            questions = [q + '?' for q in questions if not q.endswith('?')]
+            questions = [q.strip() + '?' for q in generated_questions.split('?') if q.strip()]
         else:
             cleaned_questions = generated_questions[questions_start_index:].strip()
             questions = [q.strip() for q in cleaned_questions.split('\n') if q.strip()]
 
-        print(f"\nDebug: Parsed questions: {questions}")
-        
         if not questions:
-            print("Debug: No questions generated after parsing")
             await manager.send_message(websocket, {
                 "type": "error",
                 "content": "No questions were generated from the image analysis"
             })
             return
 
-        # Send questions one by one and receive answers
+        # Send questions and receive answers
         answers = []
-        for idx, question in enumerate(questions):
+        for idx, question in enumerate(questions, 1):
             try:
-                print(f"\nDebug: Sending question {idx+1}/{len(questions)}: {question}")
                 await manager.send_message(websocket, {
                     "type": "question",
-                    "content": question
+                    "content": f"{idx}. {question}"
                 })
                 
                 # Receive answer from client
                 answer = await websocket.receive_text()
-                print(f"Debug: Received answer: {answer}")
                 answers.append(answer.lower())
             except WebSocketDisconnect:
                 return
@@ -137,9 +177,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 })
                 return
 
+        # Generate final analysis
         try:
-            # Generate final analysis using llava
-            print("\nDebug: === Final Model Request ===")
             final_messages = [
                 {
                     "role": "system",
@@ -150,15 +189,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     "content": f"Based on the user's answers: {answers}, provide the final categorization (Reduce, Reuse, or Recycle) with a clear explanation."
                 }
             ]
-            print(f"Debug: System message: {final_messages[0]['content']}")
-            print(f"Debug: User message: {final_messages[1]['content']}")
 
-            final_decision = ollama.chat(model='llava', messages=final_messages)
-
-            print("\nDebug: === Final Model Response ===")
-            print(f"Debug: Raw response: {final_decision}")
+            final_decision = ollama.chat(model='llava:latest', messages=final_messages)
             decision_content = final_decision['message']['content']
-            print(f"Debug: Final decision content:\n{decision_content}")
 
             # Send final decision to client
             await manager.send_message(websocket, {
@@ -167,7 +200,8 @@ async def websocket_endpoint(websocket: WebSocket):
             })
 
         except Exception as e:
-            print(f"\nError in final decision: {str(e)}")
+            print(f"Error in final decision: {str(e)}")
+            traceback.print_exc()
             await manager.send_message(websocket, {
                 "type": "error",
                 "content": f"Error generating final decision: {str(e)}"
@@ -177,7 +211,8 @@ async def websocket_endpoint(websocket: WebSocket):
         print("Client disconnected unexpectedly")
         manager.disconnect(websocket)
     except Exception as e:
-        print(f"\nUnhandled error: {str(e)}")
+        print(f"Unhandled error: {str(e)}")
+        traceback.print_exc()
         try:
             await manager.send_message(websocket, {
                 "type": "error",
