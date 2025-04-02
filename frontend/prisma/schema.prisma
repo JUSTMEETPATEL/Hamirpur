@@ -14,22 +14,21 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String  @unique
-  emailVerified Boolean
-  image         String?
-  role          String    @default("user")
-  createdAt     DateTime
-  updatedAt     DateTime
-  phoneNo       String?
-  sessions      Session[]
-  accounts      Account[]
-   eWasteClassifications EWasteClassification[]
+  id                    String                 @id
+  name                  String
+  email                 String                 @unique
+  emailVerified         Boolean
+  image                 String?
+  role                  String                 @default("user")
+  createdAt             DateTime
+  updatedAt             DateTime
+  phoneNo               String?
+  sessions              Session[]
+  accounts              Account[]
+  eWasteClassifications EWasteClassification[]
 
   @@map("user")
 }
-
 
 model Session {
   id        String   @id
@@ -77,12 +76,12 @@ model Verification {
 }
 
 model EWasteClassification {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  imageBase64   String   @db.Text
-  questions     Json     // Use Json type to store questions flexibly
-  result        String
-  confidence    Float?   // Optional confidence score
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  imageBase64 String   @db.Text
+  questions   Json // Use Json type to store questions flexibly
+  result      String
+  confidence  Float? // Optional confidence score
+  createdAt   DateTime @default(now())
 }
