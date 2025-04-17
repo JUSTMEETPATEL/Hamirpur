@@ -6,6 +6,7 @@ const roboto = Roboto({
   subsets: ['latin'],
 });
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
 
@@ -76,6 +77,12 @@ export default function Navbar() {
         className="text-lg text-black hover:text-gray-600 transition-colors" style={{ fontFamily: 'Roboto, sans-serif' }}
         >
         About Mamta Awasthi
+        </button>
+        <button
+            onClick={() => window.location.href = '/nodal-center'}
+            className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+          >
+            Nodal Center
         </button>
       </div>
 
