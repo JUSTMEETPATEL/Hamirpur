@@ -9,170 +9,197 @@ This system empowers users to upload images of their damaged or old electronic d
 ## 🧠 Key Features
 
 ### 📷 Image Upload Interface
-- Allows users to upload images of electronic devices, primarily smartphones.
-- Supported formats: `.jpg`, `.jpeg`, `.png`.
+- Upload images of smartphones or electronic devices.
+- Supports `.jpg`, `.jpeg`, `.png`.
 
 ### 🧠 AI-Based Image Analysis
-- Utilizes `Ollama Llava 7B` model for **computer vision**-based damage analysis.
-- Detects screen cracks, missing components, and visible wear.
+- Uses `Ollama Llava 7B` for vision-based damage detection.
+- Identifies cracks, component loss, screen issues, etc.
 
 ### 🧾 Dynamic Question Generation
-- Tailored diagnostic questions based on image insights.
-- Helps enrich AI decisions with user-reported symptoms.
+- Tailored diagnostic questions based on visual damage.
+- Captures user-reported issues for better classification.
 
 ### 📦 Intelligent Categorization
-- AI classifies devices into:
-  - ♻️ **Recycle** – Not usable, to be broken down.
-  - 🔄 **Reuse** – Can be repaired and reused.
-  - 📉 **Reduce** – Functionally fine, but users are encouraged to keep using the device.
+- Categories:
+  - ♻️ **Recycle** – Severely damaged, extract usable parts.
+  - 🔄 **Reuse** – Repairable, can be put back into use.
+  - 📉 **Reduce** – Working, minimize unnecessary replacement.
 
 ### 🛠️ Admin Dashboard
-- Built using **Next.js**, it allows:
-  - Admin review of classifications.
-  - Option to override AI decisions.
-  - Trigger repair or pickup workflows (to be added).
+- Built in **Next.js**.
+- Admins can:
+  - View submissions.
+  - Validate or override AI classifications.
+  - Flag items for repair or collection.
 
 ### 💬 Feedback System
-- Users provide feedback post-classification to improve AI accuracy and user experience.
+- Optional user feedback after each classification.
 
 ---
 
 ## 🔄 User Flow
 
-1. Users sign up/login.
-2. Upload a smartphone image via the upload interface.
-3. AI analyzes the image and provides initial findings.
-4. User answers follow-up diagnostic questions.
-5. AI classifies the device into Recycle, Reuse, or Reduce.
-6. Admin reviews and confirms or overrides classification.
-7. Action is taken (pickup, repair, or user encouragement to retain).
+1. Users register or log in.
+2. Upload an image of the electronic device.
+3. AI analyzes image and returns observations.
+4. Diagnostic questions are asked dynamically.
+5. AI classifies the device.
+6. Admin reviews classification and triggers any action.
 
 ---
 
 ## 🧱 Tech Stack
 
-| Layer       | Tech                                      |
-|-------------|-------------------------------------------|
-| **Frontend**| `Next.js 15.1.7`, `Tailwind CSS`          |
-| **Backend** | `Next.js 15.1.7`, `PostgreSQL`, `Socket`  |
-| **Model API** | `FastAPI` at port `8000` connected to `Next.js` server |
-| **AI Model**| `Ollama Llava` 7B parameter version        |
-| **Auth**    | `BetterAuth` (Open Source Library)         |
-| **Hosting** | Self-hosted or cloud (e.g. Vercel + EC2 combo) |
+| Layer         | Technology                                     |
+|---------------|------------------------------------------------|
+| **Frontend**  | `Next.js 15.1.7`, `Tailwind CSS`               |
+| **Backend**   | `Next.js` (API routes), `PostgreSQL`, `Socket` |
+| **Model API** | `FastAPI` (Python) with `Llava 7B` on `Ollama` |
+| **Authentication** | `BetterAuth` (Open Source)                  |
+| **Deployment**| **Self-hosted VPS (Linux)**                    |
 
 ---
 
 ## 🛠️ Backend Structure
 
 ### 🗃️ Database Schema
-- **Users**: Auth data and activity log.
-- **Images**: Path, upload metadata.
-- **AnalysisResults**: AI response data.
-- **Classification**: Final output (Recycle, Reuse, Reduce).
-- **AdminReviews**: Overrides and follow-up actions.
+- `users`: credentials, roles
+- `uploads`: image metadata
+- `analysis`: AI-generated observations
+- `classification`: Recycle / Reuse / Reduce
+- `admin_reviews`: overrides and logs
 
 ### 🔌 API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/auth[...all]` | User authentication |
-| `GET`  | `/api/auth[...all]` | Auth check |
-| `POST` | `/api/save-waste-classification` | Save analysis and user responses |
+| Method | Endpoint                            | Description                     |
+|--------|-------------------------------------|---------------------------------|
+| `POST` | `/api/auth[...all]`                 | Handles login, signup, logout   |
+| `GET`  | `/api/auth[...all]`                 | Returns session/auth info       |
+| `POST` | `/api/save-waste-classification`    | Saves classification data       |
 
 ---
 
-## 🔒 Security
+## 🔐 Security Measures
 
-- ✅ **BetterAuth** ensures secure login and role-based access (user/admin).
-- ✅ All data is transferred over **HTTPS**.
-- ✅ AI decisions are **audited** by human admins.
+- ✅ **BetterAuth** for user authentication and role protection.
+- ✅ End-to-end **HTTPS** over Nginx or Caddy with SSL.
+- ✅ Admin reviews to audit all AI decisions.
 
 ---
 
-## 🎨 UI/UX Guidelines
+## 🎨 UI/UX Design
 
-- **Color Scheme**: Green-based palette reflecting sustainability.
-- **Typography**: Clear, accessible fonts.
+- **Palette**: Eco-friendly greens and off-whites.
+- **Font**: Clean, accessible, sans-serif.
 - **Layout**:
-  - **Sidebar**: Navigation for upload, dashboard, and feedback.
-  - **Topbar**: Profile & account settings.
-  - **Responsiveness**: Mobile-first design principles.
+  - Sidebar navigation (Upload, Dashboard, Feedback)
+  - Topbar for profile & logout
+- **Mobile-First**: Fully responsive interface
 
 ---
 
-## 🧪 Local Development Setup
+## ⚙️ VPS Deployment (Linux)
 
 ### Prerequisites
-- Node.js (v20+ recommended)
-- PostgreSQL 15+
-- Python 3.11+
-- Ollama setup with Llava 7B
 
-### Setup Instructions
+- **Node.js** (v20+)
+- **Python** (3.11+)
+- **PostgreSQL** (v15+)
+- **Ollama** with `llava` model installed
+- **Nginx or Caddy** for reverse proxy
+- **PM2** for managing Node/Next.js
+- **Uvicorn** for FastAPI
 
+### 🧪 Local Dev Setup
 
-```
-# Clone repo
+```bash
+# Clone the repo
 git clone https://github.com/<your-username>/e-waste-ai-platform.git
 cd e-waste-ai-platform
 
-# Install Next.js dependencies
+# Install dependencies for frontend/backend
 bun install
 
-# Start frontend (port 3000)
+# Run Next.js frontend/backend (port 3000)
 bun dev
-
-# Navigate to FastAPI server folder
-cd fastapi-server/
-
-# Create virtual env and install dependencies
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Start FastAPI server (port 8000)
-uvicorn main:app --reload
 ```
 
+### ⚙️ Model Server Setup (FastAPI)
 
-🚧 In-Scope vs Out-of-Scope
-✅ In Scope
-Image upload and AI classification.
+```bash
+cd fastapi-server/
 
-Admin review workflow.
+# Set up Python virtual environment
+python -m venv venv
+source venv/bin/activate
 
-User feedback loop.
+# Install required libraries
+pip install -r requirements.txt
 
-❌ Out of Scope (for now)
-Sustainability scoring.
+# Run FastAPI on port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-Impact metric visualizations.
+### 🔀 Reverse Proxy Setup (Nginx)
 
-Reward/incentive systems.
+Example `/etc/nginx/sites-available/e-waste-ai`:
 
-Integration with government/recycler APIs.
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
 
-🤝 Contributing
-Fork the repository.
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
 
-Create a new branch: git checkout -b feature/feature-name.
+    location /api/ai {
+        proxy_pass http://localhost:8000;
+    }
+}
+```
 
-Commit your changes.
+### 🛡️ TLS (SSL)
+Use [Let's Encrypt](https://letsencrypt.org/) or [ZeroSSL](https://zerossl.com/) with Certbot or Caddy for HTTPS.
 
-Push and create a PR.
+---
 
-Follow code style and test your features.
+## 🚧 In-Scope vs Out-of-Scope
 
-🧠 Future Enhancements
-Add reward points and gamification.
+### ✅ In Scope
+- Image upload
+- AI classification
+- Admin review panel
+- Feedback loop
 
-Introduce sustainability impact charts.
+### ❌ Out of Scope (Initial Phase)
+- Impact scoring
+- Sustainability dashboards
+- Reward system
+- Integration with e-waste orgs
 
-Integrate with verified recycling partners (e.g. NGOs, e-waste recyclers).
+---
 
-Add multilingual support.
+## 🤝 Contributing
 
-Optimize AI model for edge deployments (using ONNX or TensorRT).
+1. Fork this repository.
+2. Create your feature branch: `git checkout -b feat/your-feature-name`.
+3. Commit your changes: `git commit -m 'feat: add xyz feature'`.
+4. Push to the branch: `git push origin feat/your-feature-name`.
+5. Open a Pull Request.
 
-📄 License
-This project is licensed under the MIT License – feel free to use, modify, and build upon it.
+---
+
+## 🔮 Future Roadmap
+
+- 🏆 User reward system for sustainable behavior
+- 📊 Visualization of sustainability impact
+- 🌐 Integration with verified recyclers
+- 🌍 Multilingual UI support
+- 🚀 Model optimization with ONNX/TensorRT for edge devices
