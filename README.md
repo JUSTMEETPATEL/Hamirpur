@@ -111,6 +111,81 @@ This system empowers users to upload images of their damaged or old electronic d
 - **PM2** for managing Node/Next.js
 - **Uvicorn** for FastAPI
 
+### Architecture Diagram
+
+```mermaid
+flowchart TD
+    subgraph "User Layer"
+        Client["Client Browser"]:::user
+    end
+
+    subgraph "Infrastructure"
+        Proxy["Reverse Proxy (Nginx/Caddy)"]:::infra
+        Orchestration["Container Orchestration (Docker Compose)"]:::infra
+    end
+
+    subgraph "Frontend Service"
+        subgraph "UI Layer"
+            UI["Next.js Frontend UI"]:::user
+        end
+        subgraph "API Layer"
+            API["Next.js API Layer"]:::service
+        end
+        subgraph "Auth Provider"
+            Auth["BetterAuth (Auth Pages & Libs)"]:::auth
+        end
+        subgraph "Prisma ORM & Schema"
+            Prisma["Prisma ORM & PostgreSQL Schema"]:::db
+        end
+    end
+
+    subgraph "AI Service"
+        FastAPI["FastAPI Model Service"]:::service
+        Modules["Model Inference Modules"]:::service
+        Ollama["Ollama Model Runtime"]:::service
+    end
+
+    subgraph "Database"
+        Postgres["PostgreSQL Database"]:::db
+    end
+
+    Client -->|"HTTPS:443"| Proxy
+    Proxy -->|"Route Traffic"| UI
+    UI -->|"HTTP:3000 → API"| API
+    API -->|"ORM Calls"| Prisma
+    Prisma -->|"TCP:5432"| Postgres
+    UI -->|"Socket /ws"| FastAPI
+    API -->|"Socket /ws"| FastAPI
+    FastAPI -->|"Invokes Modules"| Modules
+    FastAPI -->|"Performs Inference"| Ollama
+    FastAPI -->|"Returns JSON"| UI
+    UI -->|"User Input + AI Response"| API
+    API -->|"Save Classification"| Prisma
+    UI -->|"Admin Read/Write"| Prisma
+
+    Orchestration --> Proxy
+    Orchestration --> UI
+    Orchestration --> FastAPI
+    Orchestration --> Ollama
+    Orchestration --> Postgres
+
+    click UI "https://github.com/iie-projects/nithamirpur/tree/main/frontend/src/app"
+    click API "https://github.com/iie-projects/nithamirpur/tree/main/frontend/src/app/api"
+    click Prisma "https://github.com/iie-projects/nithamirpur/blob/main/frontend/prisma/schema.prisma"
+    click Auth "https://github.com/iie-projects/nithamirpur/tree/main/frontend/src/app/(auth)"
+    click FastAPI "https://github.com/iie-projects/nithamirpur/blob/main/backend/app.py"
+    click Modules "https://github.com/iie-projects/nithamirpur/blob/main/backend/capture_image.py"
+    click Ollama "https://github.com/iie-projects/nithamirpur/blob/main/Dockerfile.ollama"
+    click Orchestration "https://github.com/iie-projects/nithamirpur/blob/main/docker-compose.yml"
+
+    classDef user fill:#D6EAF8,stroke:#3498DB,color:#154360
+    classDef service fill:#FAD7A0,stroke:#D35400,color:#78281F
+    classDef db fill:#ABEBC6,stroke:#27AE60,color:#145A32
+    classDef infra fill:#D5D8DC,stroke:#566573,color:#1C2833
+    classDef auth fill:#E8DAEF,stroke:#8E44AD,color:#4A235A
+
+```
+
 ### 🧪 Local Dev Setup
 
 ```bash
