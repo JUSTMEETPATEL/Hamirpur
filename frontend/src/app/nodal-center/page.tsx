@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   Smartphone,
   Upload,
+  Download,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -34,12 +35,105 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DashboardChart } from "@/components/dashboard-chart"
-import { RequestsTable } from "@/components/requests-table"
+
+import {
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Line,
+  Area,
+  AreaChart,
+  LineChart as RechartsLineChart
+} from "recharts";
+
+
+// Backend API URL - replace with your actual backend URL
+const API_URL = "http://localhost:5000/api";
 
 export default function NodalCenterDashboard() {
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+  
+  // State for system data
+  const [systemData, setSystemData] = useState({
+    cpu: {
+      percent: 0,
+      per_cpu: [] as number[],
+      frequency: "N/A",
+      cores: 0,
+      threads: 0,
+      history: []
+    },
+    memory: {
+      total: "0 GB",
+      available: "0 GB",
+      used: "0 GB",
+      percent: 0,
+      swap_total: "0 GB",
+      swap_used: "0 GB",
+      swap_percent: 0,
+      history: []
+    },
+    disk: {
+      partitions: {},
+      io_stats: {},
+      history: []
+    },
+    network: {
+      ip_address: "0.0.0.0",
+      hostname: "Unknown",
+      bytes_sent: "0 B",
+      bytes_recv: "0 B",
+      packets_sent: 0,
+      packets_recv: 0,
+      upload_speed: "0 B/s",
+      download_speed: "0 B/s",
+      history: []
+    },
+    system: {
+      hostname: "Unknown",
+      ip_address: "0.0.0.0",
+      os_info: "Unknown",
+      timestamp: ""
+    }
+  });
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Function to fetch system data
+  const fetchSystemData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/system`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      setSystemData(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching system data:", err);
+      setError("Failed to fetch system data. Check if the backend server is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data initially and set up polling
+  useEffect(() => {
+    fetchSystemData();
+    
+    // Set up polling every 5 seconds
+    const intervalId = setInterval(() => {
+      fetchSystemData();
+    }, 5000);
+    
+    // Clean up on unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Prevent hydration mismatch by mounting after client-side render
   useEffect(() => {
@@ -49,6 +143,18 @@ export default function NodalCenterDashboard() {
   if (!mounted) {
     return null
   }
+
+  // Function to format disk partitions into an array for rendering
+  const formatDiskPartitions = () => {
+    if (!systemData.disk.partitions) return [];
+    return Object.entries(systemData.disk.partitions).map(([device, info]) => ({
+      device,
+      percent: (info as { percent?: number })?.percent || 0, // Ensure percent is included
+      used: (info as { used?: string })?.used || "N/A", // Ensure used is included
+      ...(typeof info === "object" && info !== null ? info : {}),
+      total: (info as { total?: string })?.total || "N/A" // Ensure total is included
+    }));
+  };
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -144,6 +250,18 @@ export default function NodalCenterDashboard() {
           </nav>
         </aside>
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+          {error && (
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+              <p>{error}</p>
+            </div>
+          )}
+          
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
           <Tabs defaultValue="overview" className="w-full" value={activeTab} onValueChange={setActiveTab}>
             <div className="flex items-center md:hidden">
               <TabsList className="w-full">
@@ -166,47 +284,47 @@ export default function NodalCenterDashboard() {
               </TabsList>
             </div>
 
-            {/* Dashboard Overview */}
+            {/* Dashboard Overview - Now using real system data */}
             <TabsContent value="overview" className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                    <CardTitle className="text-sm font-medium">System Info</CardTitle>
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">500</div>
-                    <p className="text-xs text-muted-foreground">+12% from last month</p>
+                    <div className="text-lg font-bold">{systemData.system.hostname}</div>
+                    <p className="text-xs text-muted-foreground">{systemData.system.os_info}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Items Processed</CardTitle>
+                    <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
                     <Layers className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">350</div>
-                    <p className="text-xs text-muted-foreground">70% of total requests</p>
+                    <div className="text-2xl font-bold">{systemData.cpu.percent.toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">{systemData.cpu.cores} cores / {systemData.cpu.threads} threads</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Revenue Generated</CardTitle>
-                    <Badge variant="outline" className="font-normal">₹5,00,000</Badge>
+                    <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
+                    <Badge variant="outline" className="font-normal">{systemData.memory.percent.toFixed(1)}%</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">₹5,00,000</div>
-                    <p className="text-xs text-muted-foreground">+8% from last month</p>
+                    <div className="text-2xl font-bold">{systemData.memory.used}</div>
+                    <p className="text-xs text-muted-foreground">of {systemData.memory.total}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">E-waste Categories</CardTitle>
+                    <CardTitle className="text-sm font-medium">Network Traffic</CardTitle>
                     <Smartphone className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">12</div>
-                    <p className="text-xs text-muted-foreground">Electronics, Batteries, PCBs</p>
+                    <div className="text-lg font-bold">{systemData.network.download_speed}</div>
+                    <p className="text-xs text-muted-foreground">↑ {systemData.network.upload_speed}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -214,17 +332,17 @@ export default function NodalCenterDashboard() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
                 <Card className="lg:col-span-4">
                   <CardHeader>
-                    <CardTitle>E-Waste Processing Trends</CardTitle>
-                    <CardDescription>Monthly breakdown of Reduce, Reuse, and Recycle classifications</CardDescription>
+                    <CardTitle>System Performance</CardTitle>
+                    <CardDescription>Real-time monitoring data from the server</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
-                    <DashboardChart />
+                    <DashboardChart systemData={systemData} />
                   </CardContent>
                 </Card>
                 <Card className="lg:col-span-3">
                   <CardHeader>
-                    <CardTitle>ML Model Classification Distribution</CardTitle>
-                    <CardDescription>Current distribution across 3R categories</CardDescription>
+                    <CardTitle>Resource Distribution</CardTitle>
+                    <CardDescription>Current system resource utilization</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -232,43 +350,43 @@ export default function NodalCenterDashboard() {
                         <div className="flex items-center">
                           <div className="flex items-center gap-2">
                             <RefreshCw className="h-4 w-4 text-green-500" />
-                            <span className="text-sm font-medium">Reduce</span>
+                            <span className="text-sm font-medium">CPU Usage</span>
                           </div>
-                          <div className="ml-auto">25%</div>
+                          <div className="ml-auto">{systemData.cpu.percent.toFixed(1)}%</div>
                         </div>
-                        <Progress value={25} className="h-2 bg-muted" />
+                        <Progress value={systemData.cpu.percent} className="h-2 bg-muted" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center">
                           <div className="flex items-center gap-2">
                             <ShoppingBag className="h-4 w-4 text-blue-500" />
-                            <span className="text-sm font-medium">Reuse</span>
+                            <span className="text-sm font-medium">Memory Usage</span>
                           </div>
-                          <div className="ml-auto">40%</div>
+                          <div className="ml-auto">{systemData.memory.percent.toFixed(1)}%</div>
                         </div>
-                        <Progress value={40} className="h-2 bg-muted" />
+                        <Progress value={systemData.memory.percent} className="h-2 bg-muted" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center">
                           <div className="flex items-center gap-2">
                             <Recycle className="h-4 w-4 text-amber-500" />
-                            <span className="text-sm font-medium">Recycle</span>
+                            <span className="text-sm font-medium">Swap Usage</span>
                           </div>
-                          <div className="ml-auto">35%</div>
+                          <div className="ml-auto">{systemData.memory.swap_percent.toFixed(1)}%</div>
                         </div>
-                        <Progress value={35} className="h-2 bg-muted" />
+                        <Progress value={systemData.memory.swap_percent} className="h-2 bg-muted" />
                       </div>
                     </div>
                     <div className="mt-6 space-y-1">
-                      <h4 className="text-sm font-medium">Sustainability Impact</h4>
+                      <h4 className="text-sm font-medium">Network Information</h4>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-md border p-4">
                         <div>
-                          <div className="text-2xl font-bold">2.5</div>
-                          <div className="text-xs text-muted-foreground">Tons CO₂ Reduced</div>
+                          <div className="text-sm font-bold">{systemData.network.ip_address}</div>
+                          <div className="text-xs text-muted-foreground">IP Address</div>
                         </div>
                         <div className="sm:ml-auto">
-                          <div className="text-2xl font-bold">4.8</div>
-                          <div className="text-xs text-muted-foreground">Tons Diverted from Landfill</div>
+                          <div className="text-sm font-bold">{systemData.network.hostname}</div>
+                          <div className="text-xs text-muted-foreground">Hostname</div>
                         </div>
                       </div>
                     </div>
@@ -279,78 +397,95 @@ export default function NodalCenterDashboard() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle>Recent Requests</CardTitle>
+                    <CardTitle>Disk Usage</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[1, 2, 3].map((i) => (
+                      {formatDiskPartitions().slice(0, 3).map((partition, i) => (
                         <div key={i} className="flex items-center gap-4">
                           <div className="rounded-full bg-muted p-2">
-                            <FileText className="h-4 w-4" />
+                            <Database className="h-4 w-4" />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">Request #{1000 + i}</p>
-                            <p className="text-xs text-muted-foreground">Laptop - Working condition</p>
+                            <p className="text-sm font-medium leading-none">{partition.device}</p>
+                            <Progress value={partition.percent} className="h-1 mt-2" />
+                            <p className="text-xs text-muted-foreground">{partition.used} of {partition.total}</p>
                           </div>
-                          <Badge variant="outline">{i === 1 ? "Reuse" : i === 2 ? "Recycle" : "Reduce"}</Badge>
+                          <Badge variant="outline">{partition.percent}%</Badge>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
-                        View All Requests
-                      </Button>
+                      {formatDiskPartitions().length > 3 && (
+                        <Button variant="outline" className="w-full">
+                          View All Partitions
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle>Device Categories</CardTitle>
+                    <CardTitle>CPU Cores</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[
-                        { name: "Laptops & Computers", count: 152, icon: <Smartphone className="h-4 w-4" /> },
-                        { name: "Mobile Devices", count: 98, icon: <Smartphone className="h-4 w-4" /> },
-                        { name: "Peripherals", count: 73, icon: <Smartphone className="h-4 w-4" /> },
-                      ].map((item, i) => (
+                      {systemData.cpu.per_cpu.map((value, i) => (
                         <div key={i} className="flex items-center gap-4">
                           <div className="rounded-full bg-muted p-2">
-                            {item.icon}
+                            <Layers className="h-4 w-4" />
                           </div>
                           <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">{item.name}</p>
-                            <Progress value={(item.count / 350) * 100} className="h-1 mt-2" />
+                            <p className="text-sm font-medium leading-none">Core {i + 1}</p>
+                            <Progress value={value} className="h-1 mt-2" />
                           </div>
-                          <div className="text-sm font-medium">{item.count}</div>
+                          <div className="text-sm font-medium">{value.toFixed(1)}%</div>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
-                        View All Categories
-                      </Button>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">CPU Frequency</p>
+                        <p className="text-sm font-medium">{systemData.cpu.frequency}</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle>Upcoming Collections</CardTitle>
+                    <CardTitle>Network Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex items-center gap-4">
-                          <div className="rounded-full bg-muted p-2">
-                            <Calendar className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium leading-none">Collection #{i}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(2023, 5, 10 + i * 2).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Badge>{i * 5} items</Badge>
+                      <div className="flex items-center gap-4">
+                        <div className="rounded-full bg-muted p-2">
+                          <Upload className="h-4 w-4" />
                         </div>
-                      ))}
-                      <Button variant="outline" className="w-full">
-                        View Schedule
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">Upload</p>
+                          <p className="text-xs text-muted-foreground">Total: {systemData.network.bytes_sent}</p>
+                        </div>
+                        <Badge>{systemData.network.upload_speed}</Badge>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="rounded-full bg-muted p-2">
+                          <Download className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">Download</p>
+                          <p className="text-xs text-muted-foreground">Total: {systemData.network.bytes_recv}</p>
+                        </div>
+                        <Badge>{systemData.network.download_speed}</Badge>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Packets Sent</span>
+                          <span className="text-sm font-medium">{systemData.network.packets_sent.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Packets Received</span>
+                          <span className="text-sm font-medium">{systemData.network.packets_recv.toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <Button variant="outline" className="w-full" onClick={fetchSystemData}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh Stats
                       </Button>
                     </div>
                   </CardContent>
@@ -358,231 +493,19 @@ export default function NodalCenterDashboard() {
               </div>
             </TabsContent>
 
-            {/* E-Waste Requests */}
-            <TabsContent value="requests" className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold tracking-tight">E-Waste Request Processing</h2>
-                  <p className="text-muted-foreground">Manage and process incoming ML-classified e-waste requests</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Import
-                  </Button>
-                  <Button size="sm">
-                    <FileText className="mr-2 h-4 w-4" />
-                    New Request
-                  </Button>
-                </div>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>ML-Classified Requests</CardTitle>
-                  <CardDescription>These items have been classified by the ML model based on uploaded images</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <RequestsTable />
-                </CardContent>
-              </Card>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Classification Accuracy</CardTitle>
-                    <CardDescription>Manual verification of ML model classifications</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-sm font-medium">ML Model Accuracy</h3>
-                          <span className="text-sm font-bold">92.4%</span>
-                        </div>
-                        <Progress value={92.4} className="h-2" />
-                      </div>
-                      
-                      <div className="rounded-md border p-4 space-y-3">
-                        <h3 className="text-sm font-medium">Classification Corrections</h3>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Total Processed Items</span>
-                          <span>350</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Manual Corrections Needed</span>
-                          <span>27</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>False Positives</span>
-                          <span>14</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>False Negatives</span>
-                          <span>13</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Processing Queue</CardTitle>
-                    <CardDescription>Current status of the e-waste processing pipeline</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                            <h3 className="text-sm font-medium">Awaiting Processing</h3>
-                          </div>
-                          <span className="text-sm font-medium">45 items</span>
-                        </div>
-                        <Progress value={45} max={150} className="h-2" />
-                      </div>
-                      
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full bg-blue-500"></div>
-                            <h3 className="text-sm font-medium">In Processing</h3>
-                          </div>
-                          <span className="text-sm font-medium">68 items</span>
-                        </div>
-                        <Progress value={68} max={150} className="h-2" />
-                      </div>
-                      
-                      <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div className="h-3 w-3 rounded-full bg-amber-500"></div>
-                            <h3 className="text-sm font-medium">Processed</h3>
-                          </div>
-                          <span className="text-sm font-medium">350 items</span>
-                        </div>
-                        <Progress value={100} className="h-2" />
-                      </div>
-                      
-                      <Button variant="outline" className="w-full mt-2">Manage Processing Queue</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* Waste Analytics */}
-            <TabsContent value="analytics" className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold tracking-tight">E-Waste Analytics</h2>
-                  <p className="text-muted-foreground">Analysis of processed e-waste and ML model performance</p>
-                </div>
-                <Button>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate Report
-                </Button>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>E-Waste Classification Trends</CardTitle>
-                    <CardDescription>Monthly trends of 3R categories</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 lg:h-72 flex items-center justify-center border rounded-md">
-                      <p className="text-muted-foreground">Monthly trend visualization</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Success Rate of Reuse</CardTitle>
-                    <CardDescription>Percentage of items successfully reused</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 lg:h-72 flex items-center justify-center border rounded-md">
-                      <div className="text-center">
-                        <div className="text-5xl font-bold text-green-500">68%</div>
-                        <p className="text-sm text-muted-foreground mt-2">Successful Reuse Rate</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>ML Model Accuracy</CardTitle>
-                    <CardDescription>Classification accuracy over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64 lg:h-72 flex items-center justify-center border rounded-md">
-                      <p className="text-muted-foreground">Accuracy trend visualization</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sustainability Impact</CardTitle>
-                  <CardDescription>Environmental benefits of e-waste management</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-medium">CO₂ Reduction</h3>
-                      <div className="h-40 lg:h-48 flex items-center justify-center border rounded-md">
-                        <div className="text-center">
-                          <div className="text-4xl font-bold">2.5 tons</div>
-                          <p className="text-sm text-muted-foreground mt-2">Total CO₂ emissions prevented</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-medium">Landfill Diversion</h3>
-                      <div className="h-40 lg:h-48 flex items-center justify-center border rounded-md">
-                        <div className="text-center">
-                          <div className="text-4xl font-bold">4.8 tons</div>
-                          <p className="text-sm text-muted-foreground mt-2">E-waste diverted from landfills</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-md border p-4 flex flex-col items-center justify-center">
-                      <div className="text-2xl font-bold">152</div>
-                      <p className="text-sm text-muted-foreground text-center mt-1">Devices Refurbished</p>
-                    </div>
-                    <div className="rounded-md border p-4 flex flex-col items-center justify-center">
-                      <div className="text-2xl font-bold">87</div>
-                      <p className="text-sm text-muted-foreground text-center mt-1">Parts Salvaged</p>
-                    </div>
-                    <div className="rounded-md border p-4 flex flex-col items-center justify-center">
-                      <div className="text-2xl font-bold">114</div>
-                      <p className="text-sm text-muted-foreground text-center mt-1">Properly Recycled</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Server Traffic */}
+            {/* Server Traffic - Now using real system data */}
             <TabsContent value="traffic" className="space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold tracking-tight">Server Traffic Analysis</h2>
-                  <p className="text-muted-foreground">Monitor system performance and ML model usage</p>
+                  <p className="text-muted-foreground">Monitor system performance in real-time</p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm">
                     <Calendar className="mr-1 h-4 w-4" />
                     Last 7 Days
                   </Button>
-                  <Button size="sm">
+                  <Button size="sm" onClick={fetchSystemData}>
                     <RefreshCw className="mr-1 h-4 w-4" />
                     Refresh
                   </Button>
@@ -592,42 +515,42 @@ export default function NodalCenterDashboard() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">API Requests</CardTitle>
+                    <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
                     <Database className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">2,541</div>
-                    <p className="text-xs text-muted-foreground">+18% from last week</p>
+                    <div className="text-2xl font-bold">{systemData.cpu.percent.toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">{systemData.cpu.cores} cores / {systemData.cpu.threads} threads</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">ML Model Inferences</CardTitle>
+                    <CardTitle className="text-sm font-medium">Memory Usage</CardTitle>
                     <ServerCrash className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">1,832</div>
-                    <p className="text-xs text-muted-foreground">+12% from last week</p>
+                    <div className="text-2xl font-bold">{systemData.memory.percent.toFixed(1)}%</div>
+                    <p className="text-xs text-muted-foreground">{systemData.memory.used} of {systemData.memory.total}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Avg. Response Time</CardTitle>
-                    <Badge variant="outline" className="font-normal">450ms</Badge>
+                    <CardTitle className="text-sm font-medium">Network Speed</CardTitle>
+                    <Badge variant="outline" className="font-normal">{systemData.network.download_speed}</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">450ms</div>
-                    <p className="text-xs text-muted-foreground text-green-500">-15ms from last week</p>
+                    <div className="text-2xl font-bold">{systemData.network.download_speed}</div>
+                    <p className="text-xs text-muted-foreground">Upload: {systemData.network.upload_speed}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Server Uptime</CardTitle>
-                    <Badge variant="outline" className="font-normal text-green-500">99.98%</Badge>
+                    <CardTitle className="text-sm font-medium">System Info</CardTitle>
+                    <Badge variant="outline" className="font-normal">{systemData.system.hostname}</Badge>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">99.98%</div>
-                    <p className="text-xs text-muted-foreground">30 days with no outages</p>
+                    <div className="text-md font-bold">{systemData.system.os_info}</div>
+                    <p className="text-xs text-muted-foreground">IP: {systemData.network.ip_address}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -635,12 +558,12 @@ export default function NodalCenterDashboard() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>Server Load & API Traffic</CardTitle>
-                    <CardDescription>Real-time monitoring of server performance</CardDescription>
+                    <CardTitle>CPU & Memory Load</CardTitle>
+                    <CardDescription>Real-time monitoring of system resources</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="h-80 flex items-center justify-center border rounded-md">
-                      <p className="text-muted-foreground">Server traffic visualization</p>
+                      <p className="text-muted-foreground">Resource usage data from the backend API</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -654,28 +577,28 @@ export default function NodalCenterDashboard() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">CPU</span>
-                          <span className="text-sm font-medium">45%</span>
+                          <span className="text-sm font-medium">{systemData.cpu.percent.toFixed(1)}%</span>
                         </div>
-                        <Progress value={45} className="h-2" />
+                        <Progress value={systemData.cpu.percent} className="h-2" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Memory</span>
-                          <span className="text-sm font-medium">62%</span>
+                          <span className="text-sm font-medium">{systemData.memory.percent.toFixed(1)}%</span>
                         </div>
-                        <Progress value={62} className="h-2" />
+                        <Progress value={systemData.memory.percent} className="h-2" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Storage</span>
-                          <span className="text-sm font-medium">78%</span>
+                          <span className="text-sm font-medium">Swap</span>
+                          <span className="text-sm font-medium">{systemData.memory.swap_percent.toFixed(1)}%</span>
                         </div>
-                        <Progress value={78} className="h-2" />
+                        <Progress value={systemData.memory.swap_percent} className="h-2" />
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">Network</span>
-                          <span className="text-sm font-medium">34%</span>
+                          <span className="text-sm font-medium">{systemData.network.download_speed}</span>
                         </div>
                         <Progress value={34} className="h-2" />
                       </div>
@@ -687,39 +610,25 @@ export default function NodalCenterDashboard() {
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>ML Model Performance</CardTitle>
-                    <CardDescription>Inference times and model efficiency</CardDescription>
+                    <CardTitle>Disk Usage</CardTitle>
+                    <CardDescription>Storage utilization by partition</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-medium">Average Inference Time</h3>
-                        <span className="text-sm font-bold">235ms</span>
-                      </div>
-                      
-                      <div className="rounded-md border p-4 space-y-3">
-                        <h3 className="text-sm font-medium">Model Performance</h3>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Total Inferences</span>
-                          <span>1,832</span>
+                      {formatDiskPartitions().map((partition, i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <h3 className="text-sm font-medium">{partition.device}</h3>
+                            <span className="text-sm font-bold">{partition.percent}%</span>
+                          </div>
+                          <Progress value={partition.percent} className="h-2" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Used: {partition.used}</span>
+                            <span>Free: {parseFloat(partition.total) - parseFloat(partition.used)} GB</span>
+                            <span>Total: {partition.total}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Fastest Inference</span>
-                          <span>198ms</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Slowest Inference</span>
-                          <span>412ms</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span>Inference Errors</span>
-                          <span>12 (0.65%)</span>
-                        </div>
-                      </div>
-                      
-                      <Button variant="outline" className="w-full">
-                        View Full Analytics
-                      </Button>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -727,54 +636,153 @@ export default function NodalCenterDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>System Events</CardTitle>
-                    <CardDescription>Recent alerts and notifications</CardDescription>
+                    <CardDescription>Recent system activity</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       {[
                         { 
                           type: "info", 
-                          message: "System update completed successfully", 
-                          time: "2 hours ago",
+                          message: `System data fetched at ${new Date().toLocaleTimeString()}`, 
+                          time: "Just now",
                           icon: <RefreshCw className="h-4 w-4" />
                         },
                         { 
-                          type: "warning", 
-                          message: "High CPU usage detected", 
-                          time: "5 hours ago",
+                          type: "info", 
+                          message: `CPU: ${systemData.cpu.percent.toFixed(1)}%, Memory: ${systemData.memory.percent.toFixed(1)}%`, 
+                          time: "Current status",
                           icon: <ServerCrash className="h-4 w-4" />
                         },
                         { 
-                          type: "error", 
-                          message: "ML model inference timeout", 
-                          time: "1 day ago",
-                          icon: <ServerCrash className="h-4 w-4" />
+                          type: "info", 
+                          message: `Network: ↓${systemData.network.download_speed}, ↑${systemData.network.upload_speed}`, 
+                          time: "Current status",
+                          icon: <Upload className="h-4 w-4" />
                         },
+                        { 
+                          type: "warning", 
+                          message: "Dashboard monitoring started", 
+                          time: "On page load",
+                          icon: <LayoutDashboard className="h-4 w-4" />
+                        }
                       ].map((event, i) => (
-                        <div key={i} className="flex items-center gap-4">
-                          <div className={`rounded-full p-2 ${
-                            event.type === "info" ? "bg-blue-100 text-blue-600" : 
-                            event.type === "warning" ? "bg-amber-100 text-amber-600" : 
-                            "bg-red-100 text-red-600"
-                          }`}>
+                        <div key={i} className="flex items-start gap-4">
+                          <div className={`rounded-full p-2 ${event.type === 'warning' ? 'bg-amber-100' : 'bg-blue-100'}`}>
                             {event.icon}
                           </div>
                           <div className="flex-1 space-y-1">
                             <p className="text-sm font-medium leading-none">{event.message}</p>
                             <p className="text-xs text-muted-foreground">{event.time}</p>
                           </div>
-                          <Badge variant={
-                            event.type === "info" ? "default" : 
-                            event.type === "warning" ? "outline" : 
-                            "destructive"
-                          }>
-                            {event.type}
-                          </Badge>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
-                        View All Events
-                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* E-Waste Requests Tab */}
+            <TabsContent value="requests" className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold tracking-tight">E-Waste Requests</h2>
+                  <p className="text-muted-foreground">Manage e-waste disposal requests from departments</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm">
+                    <Calendar className="mr-1 h-4 w-4" />
+                    Filter
+                  </Button>
+                  <Button size="sm">
+                    <RefreshCw className="mr-1 h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Requests</CardTitle>
+                  <CardDescription>Recent e-waste collection requests</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LocalRequestsTable />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Waste Analytics Tab */}
+            <TabsContent value="analytics" className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold tracking-tight">Waste Analytics</h2>
+                  <p className="text-muted-foreground">E-waste processing statistics and trends</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm">
+                    <Calendar className="mr-1 h-4 w-4" />
+                    Last 30 Days
+                  </Button>
+                  <Button size="sm">
+                    <FileText className="mr-1 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total E-Waste</CardTitle>
+                    <Recycle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">1,298 kg</div>
+                    <p className="text-xs text-muted-foreground">+12% from last month</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Recycled</CardTitle>
+                    <Badge variant="outline" className="font-normal">82%</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">1,065 kg</div>
+                    <p className="text-xs text-muted-foreground">Processed successfully</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                    <Badge variant="outline" className="font-normal">12</Badge>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">187 kg</div>
+                    <p className="text-xs text-muted-foreground">Awaiting processing</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Carbon Offset</CardTitle>
+                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">3.2 tons</div>
+                    <p className="text-xs text-muted-foreground">CO₂ equivalent saved</p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Monthly E-Waste Collection</CardTitle>
+                    <CardDescription>Trend of e-waste collection over the past year</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80 flex items-center justify-center border rounded-md">
+                      <p className="text-muted-foreground">Analytics chart would go here</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -783,6 +791,244 @@ export default function NodalCenterDashboard() {
           </Tabs>
         </main>
       </div>
+    </div>
+  )
+}
+
+// Additional component for the Network charts
+type SystemData = {
+  cpu: {
+    percent: number;
+    per_cpu: number[];
+    frequency: string;
+    cores: number;
+    threads: number;
+    history: [number, number][];
+  };
+  memory: {
+    total: string;
+    available: string;
+    used: string;
+    percent: number;
+    swap_total: string;
+    swap_used: string;
+    swap_percent: number;
+    history: [number, number][];
+  };
+  disk: {
+    partitions: Record<string, { percent?: number; used?: string; total?: string }>;
+    io_stats: Record<string, unknown>;
+    history: unknown[];
+  };
+  network: {
+    ip_address: string;
+    hostname: string;
+    bytes_sent: string;
+    bytes_recv: string;
+    packets_sent: number;
+    packets_recv: number;
+    upload_speed: string;
+    download_speed: string;
+    history: [number, number, number][];
+  };
+  system: {
+    hostname: string;
+    ip_address: string;
+    os_info: string;
+    timestamp: string;
+  };
+};
+
+function DashboardChart({ systemData }: { systemData: SystemData }) {
+  const [chartData, setChartData] = useState<{ time: string; cpu: number; memory: number; upload: number; download: number; }[]>([]);
+  
+  // Process the history data from system data
+  useEffect(() => {
+    if (!systemData) return;
+    
+    // Combine CPU and memory history into a unified dataset for the chart
+    const processedData = [];
+    
+    // Get the last 20 entries if they exist
+    const cpuHistory = systemData?.cpu?.history || [];
+    const memoryHistory = systemData?.memory?.history || [];
+    const networkHistory = systemData?.network?.history || [];
+    
+    // Take the last 20 entries for visualization
+    const lastEntries = Math.min(20, cpuHistory.length);
+    
+    for (let i = 0; i < lastEntries; i++) {
+      const cpuEntry = cpuHistory[cpuHistory.length - lastEntries + i];
+      const memoryEntry = memoryHistory[memoryHistory.length - lastEntries + i];
+      const networkEntry = networkHistory[networkHistory.length - lastEntries + i];
+      
+      if (cpuEntry && memoryEntry) {
+        // Format the timestamp to be more readable
+        const timestamp = new Date(cpuEntry[0]);
+        const timeStr = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        processedData.push({
+          time: timeStr,
+          cpu: cpuEntry[1],
+          memory: memoryEntry[1],
+          upload: networkEntry ? parseFloat((networkEntry[1] / 1024 / 1024).toFixed(2)) : 0,
+          download: networkEntry ? parseFloat((networkEntry[2] / 1024 / 1024).toFixed(2)) : 0,
+        });
+      }
+    }
+    
+    setChartData(processedData);
+  }, [systemData]);
+
+  return (
+    <div className="space-y-6">
+      {/* CPU and Memory Usage Chart */}
+      <div className="h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsLineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="time" />
+            <YAxis domain={[0, 100]} unit="%" />
+            <Tooltip formatter={(value) => [`${value}%`, '']} />
+            <Legend />
+            <Line
+              name="CPU Usage"
+              type="monotone"
+              dataKey="cpu"
+              stroke="#8884d8"
+              activeDot={{ r: 8 }}
+            />
+            <Line
+              name="Memory Usage"
+              type="monotone"
+              dataKey="memory"
+              stroke="#82ca9d"
+            />
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      </div>
+      
+      {/* Network Traffic Chart */}
+      <div className="h-64">
+        <h3 className="text-lg font-medium mb-2">Network Traffic (MB/s)</h3>
+        <ResponsiveContainer width="100%" height="85%">
+          <AreaChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="time" />
+            <YAxis />
+            <Tooltip formatter={(value) => [`${value} MB/s`, '']} />
+            <Legend />
+            <Area
+              name="Download"
+              type="monotone"
+              dataKey="download"
+              stroke="#2563eb"
+              fill="#93c5fd"
+              fillOpacity={0.6}
+            />
+            <Area
+              name="Upload"
+              type="monotone"
+              dataKey="upload"
+              stroke="#dc2626"
+              fill="#fca5a5"
+              fillOpacity={0.6}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+// Additional component for the Requests table
+function LocalRequestsTable() {
+  const requests = [
+    {
+      id: "REQ-001",
+      department: "Computer Science",
+      items: "Laptops, Monitors",
+      quantity: "12",
+      status: "Processing",
+      date: "2025-04-25"
+    },
+    {
+      id: "REQ-002",
+      department: "Electronics Engineering",
+      items: "Circuit boards, Testing equipment",
+      quantity: "8",
+      status: "Pending",
+      date: "2025-04-26"
+    },
+    {
+      id: "REQ-003",
+      department: "Administration",
+      items: "Printers, Scanners",
+      quantity: "5",
+      status: "Completed",
+      date: "2025-04-22"
+    },
+    {
+      id: "REQ-004",
+      department: "Library",
+      items: "Desktop computers",
+      quantity: "7",
+      status: "Pending",
+      date: "2025-04-27"
+    },
+    {
+      id: "REQ-005",
+      department: "Mechanical Engineering",
+      items: "Control systems, Old machinery",
+      quantity: "3",
+      status: "Processing",
+      date: "2025-04-24"
+    }
+  ];
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="px-4 py-3 text-left text-sm font-medium">Request ID</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Department</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Items</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Quantity</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+            <th className="px-4 py-3 text-left text-sm font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {requests.map((request) => (
+            <tr key={request.id} className="border-b">
+              <td className="px-4 py-3 text-sm">{request.id}</td>
+              <td className="px-4 py-3 text-sm">{request.department}</td>
+              <td className="px-4 py-3 text-sm">{request.items}</td>
+              <td className="px-4 py-3 text-sm">{request.quantity}</td>
+              <td className="px-4 py-3 text-sm">
+                <Badge className={
+                  request.status === "Completed" ? "bg-green-100 text-green-800" :
+                  request.status === "Processing" ? "bg-blue-100 text-blue-800" :
+                  "bg-yellow-100 text-yellow-800"
+                }>
+                  {request.status}
+                </Badge>
+              </td>
+              <td className="px-4 py-3 text-sm">{request.date}</td>
+              <td className="px-4 py-3 text-sm">
+                <Button variant="ghost" size="sm">View</Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
