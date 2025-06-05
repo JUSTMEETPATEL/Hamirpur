@@ -1,4 +1,6 @@
-#!/Users/meet/Developer/Hamirpur/backend/venv/bin/python3.13
+#!/bin/sh
+'''exec' "/Users/meet/Developer/Full Stack/Hamirpur/backend/venv/bin/python3.13" "$0" "$@"
+' '''
 # -*- coding: utf-8 -*-
 import re
 import sys
